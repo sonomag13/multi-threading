@@ -40,17 +40,11 @@ int main() {
         vecFeatureFile.emplace_back(std::async(std::launch::async, loadBigFile, fname, NUM_BYTE));
     }
 
-    auto file = vecFeatureFile.at(0).get();
-    std::cout << file.fname << " is ready" << std::endl;
-
-//    for (size_t i = 0; i < numTask; ++i) {
-//        std::cout << "check task-" << i << '\n';
-//        std::this_thread::sleep_for(std::chrono::microseconds(100));
-//        if (vecFeatureFile.at(i).wait_for(std::chrono::microseconds(1)) == std::future_status::ready) {
-//            auto file = vecFeatureFile.at(i).get();
-//            std::cout << file.fname << " is ready" << std::endl;
-//        }
-//    }
-
-    return 0;
+   for (size_t i = 0; i < numTask; ++i) {
+       std::cout << "check task-" << i << '\n';
+       auto file = vecFeatureFile.at(i).get();
+       std::cout << file.fname << " is ready" << std::endl;
+   }
+   
+   return 0;
 }
