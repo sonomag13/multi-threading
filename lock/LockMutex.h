@@ -67,10 +67,10 @@ public:
     void addNumWithLockGuard() {
         auto start = std::chrono::high_resolution_clock::now();
         std::thread t1([this]() {
-            _addNumWithMutex();
+            _addNumWithLockGuard();
         });
         std::thread t2([this]() {
-            _addNumWithMutex();
+            _addNumWithLockGuard();
         });
         t1.join();
         t2.join();
