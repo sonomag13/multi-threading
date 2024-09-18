@@ -1,5 +1,4 @@
-//// practice of using condition variable
-
+// practice of using condition variable
 
 #include <chrono>
 #include <condition_variable>
@@ -30,7 +29,7 @@ void Producer(size_t idx, size_t numTasks) {
             std::stringstream ss;
 
             // sleep to simulate the time to produce a task
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));  // this simulates the time to produce a task
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             ss << "[Producer " << idx << "] has enqueued task " << i << '\n';
             std::cout << ss.str();
 
@@ -38,12 +37,13 @@ void Producer(size_t idx, size_t numTasks) {
         }
 
         // give a short time window for the worker to lock the mutex
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     {
         std::unique_lock<std::mutex> lock(mtx);
         completed = true;
+        cv.notify_all();  // this notify_all is important otherwise the worker will not be awake
     }
 
 }
