@@ -29,7 +29,7 @@ public:
          * Destructor
          */
         {
-            std::unique_lock<std::mutex> lock(_mtx);
+            std::unique_lock lock(_mtx);
             _stop = true;
         }
 
@@ -40,23 +40,28 @@ public:
         }
     }
 
-    template<typename F, typename... Args>
-    auto addTask(F&& f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type> {
-        using return_type = typename std::result_of<F(Args...)>::type;
+    template<class F, class ... Args>
+    auto addTask(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args ...>> {
+        /**
+         * Add a task to the queue
+         */
 
-        // Convert f(args...) to a packaged_task
+        typedef std::invoke_result_t<F, Args...> return_type;
+
         auto task = std::make_shared<std::packaged_task<return_type()>>(
-                std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+            std::bind(std::forward<F>(f), std::forward<Args>(args)...)
         );
 
-        std::future<return_type> res = task->get_future();
+        std::future<return_type> res{task->get_future()};
 
         {
-            std::unique_lock<std::mutex> lock(_mtx);
-            _tasks.emplace([task](){ (*task)(); });
-        }
+            std::unique_lock lock(_mtx);
+            _tasks.emplace([task]() {
+                (*task)();
+            });
 
-        _cv.notify_one();
+            _cv.notify_one();
+        }
 
         return res;
     }
@@ -77,7 +82,7 @@ private:
 
         while (true) {
             {
-                std::unique_lock<std::mutex> lock(_mtx);
+                std::unique_lock lock(_mtx);
                 _cv.wait(lock, [this] () {return !_tasks.empty() || _stop;});
 
                 if (_stop && _tasks.empty()) {

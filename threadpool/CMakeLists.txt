@@ -3,4 +3,10 @@ project(threadpool)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(threadpool main.cpp)
+add_executable(threadpool
+        main.cpp
+)
+
+include_directories(
+        include
+)
