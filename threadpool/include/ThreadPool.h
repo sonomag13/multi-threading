@@ -31,9 +31,9 @@ public:
         {
             std::unique_lock lock(_mtx);
             _stop = true;
-        }
 
-        _cv.notify_all();
+            _cv.notify_all();
+        }
 
         for (auto & worker : _workers) {
             worker.join();
