@@ -69,9 +69,9 @@ public:
 private:
     std::mutex _mtx;
     std::condition_variable _cv;
-    bool _stop;  // Flag to indicate whether to stop
-    std::vector<std::thread> _workers;  // Vector of worker threads
-    std::queue<std::function<void()>> _tasks;  // Queue of tasks
+    bool _stop;  // flag to indicate whether to stop
+    std::vector<std::thread> _workers;  // vector of worker threads
+    std::queue<std::function<void()>> _tasks;  // queue of tasks
 
     void _run_task() {
         /**
