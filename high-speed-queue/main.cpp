@@ -1,18 +1,32 @@
+#include <chrono>
 #include <iostream>
+#include <thread>
 
+#include "IMUData.hpp"
 #include "HighEfficiencyQueue.hpp"
 
 int main() {
 
-    int x = 1;
-    int y = 1;
-    auto x2 = ++x;
-    auto y2 = y++;
+    HighEfficiencyQueue<IMUData> queImuData;
+    IMUData imuData;
 
-    std::cout << "x = " << x << std::endl;
-    std::cout << "x2 = " << x2 << std::endl;
-    std::cout << "y = " << y << std::endl;
-    std::cout << "y2 = " << y2 << std::endl;
+    std::thread threadGet(
+    [&queImuData] {
+        auto imuData = queImuData.get();
+        std::cout << imuData.timestamp << '\n';
+        }
+    );
+
+    std::thread threadPut(
+        [&queImuData, &imuData] {
+            queImuData.put(imuData);
+        }
+    );
+
+    // std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    threadPut.join();
+    threadGet.join();
 
     return EXIT_SUCCESS;
 }

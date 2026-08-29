@@ -6,4 +6,5 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(
     HighEfficiencyQueue
     main.cpp
+    IMUData.hpp
 )
