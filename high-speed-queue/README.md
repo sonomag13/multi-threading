@@ -108,3 +108,123 @@ The goal is to design the underlying data structure so that operations on the he
 * What purpose could `<type_traits>` serve in a generic queue implementation?
 * How would you modify the implementation so that `pop()` blocks until a frame becomes available?
 * How would the design change for multiple producers and multiple consumers?
+
+## Notes: Passing Values and References to `put`
+
+### Recommended interface
+
+Use two overloads when minimizing copies and moves is important:
+
+```cpp
+void put(const T& value) {
+    {
+        std::lock_guard lock(mutex);
+        queue.emplace(value);             // copy into the queue
+    }
+    condition.notify_one();
+}
+
+void put(T&& value) {
+    {
+        std::lock_guard lock(mutex);
+        queue.emplace(std::move(value));  // move into the queue
+    }
+    condition.notify_one();
+}
+```
+
+Their intended meanings are:
+
+```cpp
+T value;
+const T const_value;
+
+queue.put(value);             // copy; value remains unchanged
+queue.put(const_value);       // copy; const_value remains unchanged
+queue.put(std::move(value));  // move; value remains valid but may be moved-from
+queue.put(T{});               // move from a temporary
+```
+
+Prefer `const T&` over `T&` for the copy overload. A `T&` parameter permits the
+function to modify the caller's object, cannot accept a const object, and cannot
+accept a temporary. A `const T&` parameter provides read-only access and can bind
+to mutable lvalues, const lvalues, and rvalues.
+
+Do not implement `put(T&)` by applying `std::move` to its argument. A call such as
+`put(value)` would then silently consume an ordinary lvalue even though the caller
+did not explicitly write `std::move(value)`.
+
+### Passing by value
+
+An alternative is:
+
+```cpp
+void put(T value) {
+    std::lock_guard lock(mutex);
+    queue.emplace(std::move(value));
+}
+```
+
+The parameter `value` is a new `T` object. For an lvalue argument this generally
+means one copy into the parameter followed by one move into the queue. For an
+rvalue it generally means a move into the parameter followed by a move into the
+queue, although copy elision can remove parameter construction in some cases.
+
+The two reference overloads can avoid that intermediate move:
+
+| Call | `put(T value)` | Reference overloads |
+|---|---|---|
+| `put(value)` | one copy + one move | one copy |
+| `put(std::move(value))` | up to two moves | one move |
+| `put(T{})` | usually one move after elision | one move |
+
+Passing by reference avoids constructing a parameter object, but it does not
+avoid constructing the queue's own `T`. The queue must own a separate object, so
+it must copy or move the argument into its storage.
+
+### `const`, lvalues, and rvalues
+
+`const` and value category describe different properties:
+
+* `const` controls whether an object may be modified through an expression.
+* Lvalue/rvalue category controls how an expression can bind to references and
+  whether its resources may potentially be transferred.
+
+`std::move` changes the expression's value category; it does not remove `const`:
+
+```cpp
+T value;
+const T const_value;
+
+std::move(value);        // T&&
+std::move(const_value);  // const T&&
+```
+
+Given `put(const T&)` and `put(T&&)`, overload selection is:
+
+| Argument | Selected overload |
+|---|---|
+| mutable lvalue `value` | `put(const T&)` |
+| const lvalue `const_value` | `put(const T&)` |
+| mutable rvalue `std::move(value)` or `T{}` | `put(T&&)` |
+| const rvalue `std::move(const_value)` | `put(const T&)` |
+
+A `const T&&` can bind to `const T&` because constness is preserved. It cannot
+bind to `T&&`, because that would discard `const` and provide mutable access to a
+const object. Ordinary move constructors take `T&&` because transferring resources
+usually modifies the source. Consequently, attempting to move a const object
+normally invokes its copy constructor instead:
+
+```cpp
+const T source;
+T destination(std::move(source)); // normally calls T(const T&)
+```
+
+Finally, a named rvalue-reference parameter is itself an lvalue expression inside
+the function. Explicit `std::move` is therefore required when inserting it:
+
+```cpp
+void put(T&& value) {
+    queue.emplace(std::move(value));
+}
+```

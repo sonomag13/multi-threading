@@ -15,7 +15,7 @@ public:
          * Put a value in the queue
          */
 
-        std::lock_guard<std::mutex> lock(_mtx);
+        std::lock_guard lock(_mtx);
         this->_que.emplace(std::move(value));
         this->_cv.notify_one();
     }
@@ -25,9 +25,9 @@ public:
          * Get a data point from the front of the queue
          */
 
-        std::unique_lock<std::mutex> lock(_mtx);
+        std::unique_lock lock(_mtx);
 
-        this->_cv.wait(lock, [this] { return !this->_que.empty(); });
+        this->_cv.wait(lock, [this]() { return !this->_que.empty(); });
         auto value = std::move(this->_que.front());
         _que.pop();
 
