@@ -4,26 +4,25 @@
 
 #include "IMUData.hpp"
 #include "HighEfficiencyQueue.hpp"
+#include "utils.hpp"
+
+constexpr size_t QUEUE_CAPACITY{10};
 
 int main() {
 
-    HighEfficiencyQueue<IMUData> queImuData;
-    IMUData imuData;
+    HighEfficiencyQueue<IMUData, QUEUE_CAPACITY> queImuData;
 
     std::thread threadGet(
     [&queImuData] {
-        auto imuData = queImuData.get();
-        std::cout << imuData.timestamp << '\n';
+            getData(queImuData, std::chrono::milliseconds(1));
         }
     );
 
     std::thread threadPut(
-        [&queImuData, &imuData] {
-            queImuData.put(imuData);
+        [&queImuData] {
+            putData(queImuData, std::chrono::milliseconds(100));
         }
     );
-
-    // std::this_thread::sleep_for(std::chrono::seconds(1));
 
     threadPut.join();
     threadGet.join();

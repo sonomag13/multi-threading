@@ -7,4 +7,5 @@ add_executable(
     HighEfficiencyQueue
     main.cpp
     IMUData.hpp
+    utils.hpp
 )
