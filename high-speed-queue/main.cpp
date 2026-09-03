@@ -14,13 +14,14 @@ int main() {
 
     std::thread threadGet(
     [&queImuData] {
-            getData(queImuData, std::chrono::milliseconds(1));
+            getData(queImuData, std::chrono::milliseconds(100));
         }
     );
 
     std::thread threadPut(
         [&queImuData] {
-            putData(queImuData, std::chrono::milliseconds(100));
+            putData(queImuData, std::chrono::milliseconds(10));
+            queImuData.close();
         }
     );
 

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <iostream>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 template<class T, std::size_t Capacity>
@@ -14,48 +15,91 @@ public:
     HighEfficiencyQueue() = default;
     ~HighEfficiencyQueue() = default;
 
-    void put(const T& value) {
+    void close() {
+
+        {
+            std::lock_guard<std::mutex> lock(this->_mtx);
+            std::cout << "Queue is closed";
+            this->_shutdown = true;
+        }
+
+        _cv_not_empty.notify_all();
+        _cv_not_full.notify_all();
+    }
+
+    bool put(const T& value) {
         /*
          * Put a value in the queue
          */
 
-        std::cout << "lvalue is passed in" << '\n';
-        {
-            std::unique_lock lock(this->_mtx);
-            this->_cv_not_full.wait(lock, [this] () {return this->_que.size() < Capacity;});
-            this->_que.emplace(value);
+        std::unique_lock lock(this->_mtx);
+        if (this->_que.size() == Capacity) {
+            std::cout << "Queue is full\n";
+        }
+        this->_cv_not_full.wait(lock, [this] () {
+                std::cout <<  "queue size = " << this->_que.size() << '\n';
+                return this->_shutdown || this->_que.size() < Capacity;
+            }
+        );
+
+        if (this->_shutdown) {
+            std::cerr << "shut down\n";
+            return false;
         }
 
+        this->_que.emplace(value);
+        lock.unlock();
         this->_cv_not_empty.notify_one();
+        return true;
     }
 
-    void put(T&& value) {
+    bool put(T&& value) {
         /*
          * Put a value in the queue
          */
 
-        std::cout << "rvalue is passed in" << '\n';
-        {
-            std::unique_lock lock(this->_mtx);
-            this->_cv_not_full.wait(lock, [this] () {return this->_que.size() < Capacity;});
-            this->_que.emplace(std::move(value));
+        std::unique_lock lock(this->_mtx);
+        if (this->_que.size() == Capacity) {
+            std::cout << "Queue is full\n";
+        }
+        this->_cv_not_full.wait(lock, [this] () {
+                std::cout <<  "queue size = " << this->_que.size() << '\n';
+                return this->_shutdown || this->_que.size() < Capacity;
+            }
+        );
+
+        if (this->_shutdown) {
+            std::cerr << "shut down\n";
+            return false;
         }
 
+        this->_que.emplace(std::move(value));
+        lock.unlock();
+
         this->_cv_not_empty.notify_one();
+        return true;
     }
 
-    T get() {
+    std::optional<T> get() {
         /*
          * Get a data point from the front of the queue
          */
 
         std::unique_lock lock(this->_mtx);
-
         if (_que.empty()) {
-            std::cout << "Queue is empty; waiting for data\n";
+            std::cout << "Queue is empty\n";
+        }
+        this->_cv_not_empty.wait(lock, [this]() {
+                std::cout <<  "queue size = " << this->_que.size() << '\n';
+                return this->_shutdown || !this->_que.empty();
+            }
+        );
+
+        if (this->_que.empty()) {
+            std::cerr << "shut down\n";
+            return std::nullopt;
         }
 
-        this->_cv_not_empty.wait(lock, [this]() { return !this->_que.empty(); });
         auto value = std::move(this->_que.front());
         _que.pop();
         lock.unlock();
@@ -66,6 +110,7 @@ public:
     }
 
 private:
+    bool _shutdown{false};
     std::queue<T> _que;
     std::mutex _mtx;
     std::condition_variable _cv_not_empty;

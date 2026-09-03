@@ -15,7 +15,9 @@ template<class QueueType>
 void putData(QueueType& queue, std::chrono::milliseconds sleepTime_ms) {
 
     for (std::size_t i = 0; i < 100; ++i) {
-        queue.put(IMUData{});
+        if (!queue.put(IMUData{})) {
+            break;
+        }
         std::this_thread::sleep_for(sleepTime_ms);
     }
 }
@@ -23,9 +25,8 @@ void putData(QueueType& queue, std::chrono::milliseconds sleepTime_ms) {
 template<class QueueType>
 void getData(QueueType& queue, std::chrono::milliseconds sleepTime_ms) {
 
-    for (std::size_t i = 0; i < 100; ++i) {
-        auto val = queue.get();
-        std::cout << "time stamp = " << val.timestamp << '\n';
+    while (auto val = queue.get()) {
+        std::cout << "time stamp = " << val->timestamp << '\n';
         std::this_thread::sleep_for(sleepTime_ms);
     }
 }
