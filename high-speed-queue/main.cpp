@@ -12,21 +12,32 @@ int main() {
 
     HighEfficiencyQueue<IMUData, QUEUE_CAPACITY> queImuData;
 
-    std::thread threadGet(
-    [&queImuData] {
-            getData(queImuData, std::chrono::milliseconds(100));
+    std::thread threadConsumer1(
+        [&queImuData] {
+            getData(queImuData, std::chrono::milliseconds(50));
+        }
+    );
+    std::thread threadConsumer2(
+        [&queImuData] {
+            getData(queImuData, std::chrono::milliseconds(50));
         }
     );
 
-    std::thread threadPut(
+    std::thread threadProducer(
         [&queImuData] {
             putData(queImuData, std::chrono::milliseconds(10));
+            std::cout << "Producer stops making new data\n";
             queImuData.close();
         }
     );
 
-    threadPut.join();
-    threadGet.join();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::cout << "Queue is shutdown by main\n";
+    queImuData.close();
+
+    threadProducer.join();
+    threadConsumer1.join();
+    threadConsumer2.join();
 
     return EXIT_SUCCESS;
 }

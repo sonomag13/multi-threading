@@ -15,7 +15,8 @@ template<class QueueType>
 void putData(QueueType& queue, std::chrono::milliseconds sleepTime_ms) {
 
     for (std::size_t i = 0; i < 100; ++i) {
-        if (!queue.put(IMUData{})) {
+        IMUData imuData;
+        if (!queue.put(imuData)) {
             break;
         }
         std::this_thread::sleep_for(sleepTime_ms);
